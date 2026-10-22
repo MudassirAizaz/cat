@@ -1,0 +1,6 @@
+singleton Notifications 1.0 Notifications.qml
+singleton Clipboard 1.0 Clipboard.qml
+singleton Audio 1.0 Audio.qml
+singleton PowerState 1.0 PowerState.qml
+singleton WallpaperState 1.0 WallpaperState.qml
+singleton NetworkState 1.0 NetworkState.qml
