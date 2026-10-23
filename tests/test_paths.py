@@ -69,11 +69,17 @@ class LauncherPathTests(unittest.TestCase):
         self.assertEqual(self.invoke(self.checkout / "run.sh"), ["-p", str(self.checkout)])
 
     @unittest.skipUnless(shutil.which("lua"), "Lua is required")
-    def test_hyprland_shortcuts_resolve_a_symlinked_config_without_a_named_config(self):
+    def test_hyprland_startup_and_shortcuts_use_the_installed_shell(self):
         shutil.copy(ROOT / "hyprland.lua", self.checkout / "hyprland.lua")
+        shutil.copytree(ROOT / "hypr", self.checkout / "hypr")
         active_config = self.unrelated / "hyprland.lua"
         active_config.symlink_to(Path("..") / self.checkout.name / "hyprland.lua")
-        # Record binding commands without executing autostart or desktop actions.
+        home = self.root / "User's home $with spaces"
+        installed = home / ".local/bin/cat-shell"
+        installed.mkdir(parents=True)
+        shutil.copy(ROOT / "run.sh", installed / "run.sh")
+        env = dict(self.env, HOME=str(home))
+        # Record startup and binding commands without executing desktop actions.
         harness = '''
 local dispatcher = {}
 setmetatable(dispatcher, {
@@ -82,6 +88,10 @@ setmetatable(dispatcher, {
 })
 hl = setmetatable({
     dsp = dispatcher,
+    on = function(event, callback)
+        if event == "hyprland.start" then callback() end
+    end,
+    exec_cmd = function(command) print("STARTUP\\t" .. command) end,
     bind = function(key, command)
         if key:match("^SUPER") and type(command) == "string"
             and command:find(" ipc call shell ", 1, true) then
@@ -94,9 +104,18 @@ dofile(arg[1])
 '''
         result = subprocess.run(
             ["lua", "-", str(active_config)], input=harness,
-            cwd=self.unrelated, env=self.env, capture_output=True, text=True, check=True,
+            cwd=self.unrelated, env=env, capture_output=True, text=True, check=True,
         )
-        bindings = dict(line.split("\t", 1) for line in result.stdout.splitlines())
+        commands = [line.split("\t", 1) for line in result.stdout.splitlines()]
+        startup = [command for key, command in commands if key == "STARTUP"]
+        bindings = {key: command for key, command in commands if key != "STARTUP"}
+        self.assertIn("hyprpaper", startup)
+        self.assertFalse(any("waybar" in command for command in startup))
+        call = subprocess.run(
+            ["bash", "-c", startup[0]], cwd=self.unrelated, env=env,
+            capture_output=True, text=True, check=True,
+        )
+        self.assertEqual(json.loads(call.stdout), ["-p", str(installed)])
         actions = {
             "SUPER + R": "launcher", "SUPER + SPACE": "menu", "SUPER + P": "session",
             "SUPER + V": "clipboard", "SUPER + N": "notifications", "SUPER + SHIFT + N": "dnd",
@@ -105,11 +124,11 @@ dofile(arg[1])
         for key, action in actions.items():
             with self.subTest(key=key):
                 call = subprocess.run(
-                    ["bash", "-c", bindings[key]], cwd=self.unrelated, env=self.env,
+                    ["bash", "-c", bindings[key]], cwd=self.unrelated, env=env,
                     capture_output=True, text=True, check=True,
                 )
                 self.assertEqual(json.loads(call.stdout), [
-                    "ipc", "-p", str(self.checkout), "call", "shell", action,
+                    "ipc", "-p", str(installed), "call", "shell", action,
                 ])
 
 

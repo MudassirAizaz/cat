@@ -11,7 +11,7 @@ PanelFrame {
     panelName: "session"
     centered: true
     panelWidth: 440
-    panelHeight: 440
+    panelHeight: 390
     property string error: ""
     onOpened: {
         error = "";
