@@ -77,15 +77,14 @@ ln -s "$(pwd -P)" "$config_home/quickshell/cat"
 quickshell -c cat
 ```
 
-For a Lua Hyprland configuration, merge `hyprland.lua.example` into your
-configuration after registering the named configuration above. Replace
-existing bindings on the same keys, especially a Fuzzel binding on Super+V.
-Keep your existing clipboard watcher if you already have one.
-
-For a legacy `hyprland.conf`, merge `hyprland.conf.example`. Both examples start
-Cat, hyprpaper, and text/image clipboard watchers at login.
-Keep only one watcher per content type. To begin collecting history in the
-current session:
+After registering the named configuration, start `quickshell -c cat` and
+`hyprpaper` at login. Add the IPC commands from the Controls section to your
+Hyprland bindings. Lua configurations use `hl.on("hyprland.start", ...)` for
+startup and `hl.bind` with `hl.dsp.exec_cmd` for commands; legacy configurations
+use `exec-once` and `bind` entries.
+Replace existing bindings on the same keys, especially a Fuzzel binding on Super+V.
+Keep only one clipboard watcher per content type. To begin collecting history
+in the current session:
 
 ```sh
 wl-paste --type text --watch cliphist store &
@@ -99,7 +98,8 @@ Cat integration. Its Cat bindings resolve the checkout through this file,
 including when your active Hyprland config is a symlink, and require no named
 Quickshell configuration. Its monitor
 module is optional; its other programs and desktop preferences are independent
-of Cat. Use the `.example` files when adding Cat to an existing desktop.
+of Cat. Copy only the Cat startup and bindings when integrating into an existing
+desktop.
 
 If you move the checkout, update the configuration symlink. Avoid a top-level
 `quickshell/shell.qml` alongside named configurations: Quickshell treats that as
@@ -258,8 +258,7 @@ services/                 Notification, clipboard, audio, power, network state
 scripts/clipboard.sh      Binary-safe cliphist operations and image previews
 scripts/wallpapers.py     Wallpaper list and hyprpaper integration
 scripts/session.sh        Allowlisted sleep, power, and logout commands
-hyprland.conf.example     Autostart and keybindings
-hyprland.lua.example      Autostart and keybindings for Lua configs
+hyprland.lua             Personal Hyprland Lua configuration
 ```
 
 The native integrations use Quickshell's
@@ -274,7 +273,7 @@ and [network service](https://quickshell.org/docs/v0.3.1/types/Quickshell.Networ
 python3 -B -m unittest discover -s tests -v
 bash -n run.sh scripts/clipboard.sh scripts/session.sh
 luac -p hyprland.lua
-luac -p hyprland.lua.example
+luac -p scripts/window-input.lua
 ```
 
 The clipboard tests use a temporary, real cliphist database and a substitute
