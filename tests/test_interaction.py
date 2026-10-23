@@ -122,7 +122,7 @@ ShellRoot {
                     check(ShellState.panel === "", "outside touch closes panel");
                     click(menu, 15, 14);
                 } else if (step === 6) {
-                    click(bar.contentItem, bar.width / 2, 2);
+                    click(bar.contentItem, 2, bar.height / 2);
                     check(ShellState.panel === "", "empty bar click closes panel");
                     click(volume, 15, 14);
                 } else {

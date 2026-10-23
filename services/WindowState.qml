@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import ".."
 
 QtObject {
     readonly property var activeWindow: Hyprland.activeToplevel
@@ -10,8 +11,11 @@ QtObject {
         && Hyprland.toplevels.values.includes(inspectedWindow)
 
     onActiveWindowChanged: {
-        if (activeWindow)
-            capture();
+        if (!activeWindow)
+            return;
+        inspectedWindow = activeWindow;
+        if (ShellState.panel === "window")
+            Hyprland.refreshToplevels();
     }
 
     function capture() {

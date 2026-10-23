@@ -141,6 +141,8 @@ Panels opened from the bar appear on that monitor. Keybindings use the
 focused monitor. Selecting a clipboard entry restores its original contents
 to the clipboard; use your application's normal paste shortcut afterwards.
 Image entries show thumbnails decoded from cliphist's stored data.
+Clipboard history refreshes on opening, after actions, and every five seconds
+while its popup is open.
 
 In the audio popup, click the device name under Output or Microphone to choose
 the system's default device. Each has its own volume slider and mute button.

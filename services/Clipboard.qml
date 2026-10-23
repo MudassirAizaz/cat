@@ -76,7 +76,7 @@ Scope {
     }
 
     Timer {
-        interval: 2000
+        interval: 5000
         running: ShellState.panel === "clipboard"
         repeat: true
         onTriggered: root.refresh()

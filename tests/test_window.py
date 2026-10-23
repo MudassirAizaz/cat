@@ -92,6 +92,7 @@ ShellRoot {
     }
     Timer {
         property int step: 0
+        property int refreshesBeforeFocus: 0
         interval: 120
         repeat: true
         running: true
@@ -115,6 +116,7 @@ ShellRoot {
                     check(button.visible && button.enabled, "application button is available");
                     check(button.text === "Test Terminal", "bar uses app name rather than window title");
                     check(find(bar.contentItem, "windowButtonIcon").iconName === "utilities-terminal", "app icon resolved");
+                    check(Hyprland.refreshes === 0, "closed panel does not request window metadata");
                     click(button);
                     Hyprland.activeToplevel = null;
                 } else if (step === 1) {
@@ -128,8 +130,10 @@ ShellRoot {
                     check(details["Application ID"] === "com.test.Terminal", "application ID");
                     check(details["Size"] === "1280 × 720", "window size");
                     check(details["Process ID"] === "1234", "process ID");
+                    refreshesBeforeFocus = Hyprland.refreshes;
                     Hyprland.activeToplevel = root.unknown;
                 } else if (step === 2) {
+                    check(Hyprland.refreshes === refreshesBeforeFocus + 1, "visible panel refreshes metadata on focus change");
                     check(popup.visible && popup.targetWindow === root.unknown, "focus changes update the open panel without reopening");
                     check(find(popup.contentItem, "windowApplication").text === "unregistered-app", "popup application follows focus");
                     check(find(popup.contentItem, "windowTitle").text === root.unknown.title, "popup title follows focus");
@@ -147,7 +151,9 @@ ShellRoot {
                     check(popup.targetWindow === root.unknown && WindowState.inspectionAvailable, "panel focus preserves the last application");
                     click(button);
                     check(!popup.visible, "repeat click toggles closed");
+                    refreshesBeforeFocus = Hyprland.refreshes;
                     Hyprland.activeToplevel = root.terminal;
+                    check(Hyprland.refreshes === refreshesBeforeFocus, "closed panel tracks focus without refreshing all metadata");
                     click(button);
                 } else if (step === 5) {
                     check(popup.visible && popup.targetWindow === root.terminal, "reopening follows current focus");
