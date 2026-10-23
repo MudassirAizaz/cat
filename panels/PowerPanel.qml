@@ -10,7 +10,7 @@ PanelFrame {
     id: root
     panelName: "power"
     panelWidth: 340
-    panelHeight: 320
+    panelHeight: Math.max(320, content.implicitHeight + 36)
     readonly property var battery: UPower.displayDevice
     readonly property bool charging: battery.state === UPowerDeviceState.Charging
     readonly property string batteryDetail: {
@@ -28,6 +28,7 @@ PanelFrame {
     onOpened: PowerState.refresh()
 
     ColumnLayout {
+        id: content
         anchors.fill: parent
         anchors.margins: 18
         spacing: 12
@@ -119,10 +120,12 @@ PanelFrame {
             }
         }
         Label {
+            objectName: "powerError"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            // text: PowerState.error || (PowerState.busy ? "Updating profiles…" : "Unavailable profiles are dimmed.")
-            color: PowerState.error ? Theme.danger : Theme.subtle
+            text: PowerState.error
+            visible: text.length > 0
+            color: Theme.danger
             font.pixelSize: Config.scaledFontSize(10)
             wrapMode: Text.WordWrap
         }

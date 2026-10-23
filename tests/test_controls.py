@@ -4,7 +4,7 @@ import shutil
 import tempfile
 import unittest
 
-from support import ROOT, assert_qml_passes, qml_environment
+from support import ROOT, assert_qml_passes, floating_window, qml_environment
 
 
 @unittest.skipUnless(shutil.which("quickshell"), "quickshell is required")
@@ -146,6 +146,74 @@ ShellRoot {
     }
 }
 ''', "NETWORK_STATE_PASS")
+
+    def test_power_popup_shows_errors_without_idle_or_busy_hint(self):
+        shutil.copytree(ROOT / "components", self.root / "components")
+        (self.root / "panels").mkdir()
+        shutil.copy(ROOT / "panels/PowerPanel.qml", self.root / "panels")
+        for name in ("Config.qml", "Theme.qml", "ShellState.qml", "qmldir"):
+            shutil.copy(ROOT / name, self.root / name)
+        frame = self.root / "components/PanelFrame.qml"
+        frame.write_text(floating_window(frame.read_text()))
+        (self.root / "services/qmldir").write_text("singleton PowerState 1.0 PowerState.qml\n")
+        (self.root / "services/PowerState.qml").write_text('''pragma Singleton
+import QtQuick
+QtObject {
+    property string error: ""
+    property bool busy: false
+    property var profiles: ["power-saver", "balanced", "performance"]
+    property string active: "balanced"
+    property var profileNames: ({"power-saver": "Power saver", "balanced": "Balanced", "performance": "Performance"})
+    function title(profile) { return profileNames[profile]; }
+    function refresh() {}
+    function select(profile) {}
+}
+''')
+        self.run_qml('''import QtQuick
+import Quickshell
+import "panels"
+import "services"
+ShellRoot {
+    PowerPanel { id: popup }
+    Component.onCompleted: ShellState.toggle("power")
+    Timer {
+        property int step: 0
+        interval: 100
+        repeat: true
+        running: true
+        function check(value, message) { if (!value) throw new Error(message); }
+        function find(item, name) {
+            if (item.objectName === name) return item;
+            for (const child of item.children || []) {
+                const found = find(child, name);
+                if (found) return found;
+            }
+            return null;
+        }
+        onTriggered: {
+            try {
+                const error = find(popup.contentItem, "powerError");
+                if (step === 0) {
+                    check(popup.visible && error.text === "", "no explanatory text while idle");
+                    PowerState.busy = true;
+                } else if (step === 1) {
+                    check(error.text === "", "no explanatory text while updating");
+                    PowerState.busy = false;
+                    PowerState.error = "Could not change the power profile.";
+                } else if (step === 2) {
+                    check(error.text === PowerState.error && error.visible && error.height >= error.implicitHeight, "actual failure is fully displayed");
+                    PowerState.error = "";
+                } else {
+                    check(error.text === "", "clearing the failure leaves no hint text");
+                    console.log("POWER_POPUP_PASS");
+                    Qt.quit();
+                }
+                step++;
+            } catch (error) { console.log("TEST FAILURE", error.message); Qt.quit(); }
+        }
+    }
+}
+''', "POWER_POPUP_PASS")
 
     def test_power_profile_success_and_failure(self):
         shutil.copy(ROOT / "services/PowerState.qml", self.root / "services/PowerState.qml")
