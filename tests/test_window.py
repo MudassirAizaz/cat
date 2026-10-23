@@ -154,9 +154,11 @@ ShellRoot {
                     refreshesBeforeFocus = Hyprland.refreshes;
                     Hyprland.activeToplevel = root.terminal;
                     check(Hyprland.refreshes === refreshesBeforeFocus, "closed panel tracks focus without refreshing all metadata");
-                    click(button);
+                    ShellState.navigate("menu");
+                    ShellState.navigate("window");
                 } else if (step === 5) {
                     check(popup.visible && popup.targetWindow === root.terminal, "reopening follows current focus");
+                    check(Hyprland.refreshes === refreshesBeforeFocus + 1, "opening through panel navigation refreshes metadata");
                     Hyprland.toplevels = {values: [root.unknown]};
                     Hyprland.activeToplevel = root.unknown;
                 } else if (step === 6) {

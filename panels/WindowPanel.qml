@@ -13,6 +13,7 @@ PanelFrame {
     readonly property Region bodyRegion: Region { item: root.panelBody }
     panelWidth: 440
     panelHeight: WindowState.inspectionAvailable ? content.implicitHeight + 36 : 220
+    onOpened: WindowState.capture()
     readonly property var targetWindow: WindowState.inspectedWindow
     readonly property var application: WindowState.applicationFor(targetWindow)
     readonly property var windowData: targetWindow?.lastIpcObject || {}
