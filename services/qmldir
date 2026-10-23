@@ -4,3 +4,5 @@ singleton Audio 1.0 Audio.qml
 singleton PowerState 1.0 PowerState.qml
 singleton WallpaperState 1.0 WallpaperState.qml
 singleton NetworkState 1.0 NetworkState.qml
+singleton WindowState 1.0 WindowState.qml
+singleton WindowInput 1.0 WindowInput.qml

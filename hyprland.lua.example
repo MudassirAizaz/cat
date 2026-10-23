@@ -1,0 +1,16 @@
+-- First link the checkout as $XDG_CONFIG_HOME/quickshell/cat (see README.md).
+-- Merge these entries into your existing Hyprland Lua configuration.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("quickshell -c cat")
+    hl.exec_cmd("hyprpaper")
+    hl.exec_cmd("wl-paste --type text --watch cliphist store")
+    hl.exec_cmd("wl-paste --type image --watch cliphist store")
+end)
+
+local catIpc = "quickshell ipc -c cat call shell "
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd(catIpc .. "menu"))
+hl.bind("SUPER + R", hl.dsp.exec_cmd(catIpc .. "launcher"))
+hl.bind("SUPER + P", hl.dsp.exec_cmd(catIpc .. "session"))
+hl.bind("SUPER + V", hl.dsp.exec_cmd(catIpc .. "clipboard"))
+hl.bind("SUPER + N", hl.dsp.exec_cmd(catIpc .. "notifications"))
+hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(catIpc .. "dnd"))

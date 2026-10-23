@@ -15,8 +15,10 @@ ActionButton {
     Keys.onUpPressed: moveRequested(-1)
     Keys.onDownPressed: moveRequested(1)
     Keys.onRightPressed: {
-        if (hasSubmenu) clicked();
-        else ShellState.forward();
+        if (hasSubmenu)
+            clicked();
+        else
+            ShellState.forward();
     }
     Keys.onLeftPressed: ShellState.back()
     Keys.onReturnPressed: clicked()

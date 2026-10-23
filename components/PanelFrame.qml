@@ -10,7 +10,8 @@ PanelWindow {
     property int panelWidth: 420
     property int panelHeight: 540
     default property alias panelContent: body.data
-    signal opened()
+    readonly property alias panelBody: body
+    signal opened
 
     screen: ShellState.panelScreen || ShellState.focusedScreen
     visible: ShellState.panel === panelName
@@ -30,41 +31,47 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     onVisibleChanged: {
-        if (visible) Qt.callLater(() => {
-            if (!root.visible) return;
-            body.forceActiveFocus();
-            root.opened();
-        });
+        if (visible)
+            Qt.callLater(() => {
+                if (!root.visible)
+                    return;
+                body.forceActiveFocus();
+                root.opened();
+            });
     }
 
-    data: [MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.AllButtons
-        onClicked: event => {
-            // Empty space within the panel is still part of the panel.
-            if (event.x < body.x || event.x >= body.x + body.width
-                || event.y < body.y || event.y >= body.y + body.height)
-                ShellState.close();
+    data: [
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onClicked: event => {
+                // Empty space within the panel is still part of the panel.
+                if (event.x < body.x || event.x >= body.x + body.width || event.y < body.y || event.y >= body.y + body.height)
+                    ShellState.close();
+            }
+        },
+        Rectangle {
+            id: body
+            width: Math.min(root.panelWidth, parent.width - Config.gap * 2)
+            height: Math.max(0, Math.min(root.panelHeight, parent.height - y - Config.gap))
+            x: {
+                if (root.centered)
+                    return Math.round((parent.width - width) / 2);
+                const rightEdge = parent.width - width - Config.gap;
+                if (ShellState.panelAnchorX < 0)
+                    return rightEdge;
+                const anchored = Math.round(ShellState.panelAnchorX - width / 2);
+                return Math.max(Config.gap, Math.min(rightEdge, anchored));
+            }
+            y: root.centered ? Math.max(Config.gap, Math.round((root.screen?.height || 800) * 0.18) - Config.barHeight) : Config.gap
+            color: Theme.surface
+            border.color: Theme.border
+            radius: Config.radius + 2
+            focus: true
+            Keys.onEscapePressed: ShellState.close()
+            Keys.onPressed: event => ShellState.handleNavigationKey(event)
+            Keys.onLeftPressed: ShellState.back()
+            Keys.onRightPressed: ShellState.forward()
         }
-    },
-
-    Rectangle {
-        id: body
-        width: Math.min(root.panelWidth, parent.width - Config.gap * 2)
-        height: Math.max(0, Math.min(root.panelHeight, parent.height - y - Config.gap))
-        x: root.centered ? Math.round((parent.width - width) / 2)
-            : ShellState.panelAnchorX < 0 ? parent.width - width - Config.gap
-            : Math.max(Config.gap, Math.min(parent.width - width - Config.gap,
-                Math.round(ShellState.panelAnchorX - width / 2)))
-        y: root.centered ? Math.max(Config.gap,
-            Math.round((root.screen?.height || 800) * 0.18) - Config.barHeight) : Config.gap
-        color: Theme.surface
-        border.color: Theme.border
-        radius: Config.radius + 2
-        focus: true
-        Keys.onEscapePressed: ShellState.close()
-        Keys.onPressed: event => ShellState.handleNavigationKey(event)
-        Keys.onLeftPressed: ShellState.back()
-        Keys.onRightPressed: ShellState.forward()
-    }]
+    ]
 }

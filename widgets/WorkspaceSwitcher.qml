@@ -9,8 +9,13 @@ Item {
     id: root
     property var monitor: null
     readonly property var workspaceIds: {
-        const ids = Array.from({ length: Config.workspaceCount }, (_, i) => i + 1);
-        Hyprland.workspaces.values.forEach(w => { if (w.id > 0 && !ids.includes(w.id)) ids.push(w.id); });
+        const ids = Array.from({
+            length: Config.workspaceCount
+        }, (_, i) => i + 1);
+        Hyprland.workspaces.values.forEach(w => {
+            if (w.id > 0 && !ids.includes(w.id))
+                ids.push(w.id);
+        });
         return ids.sort((a, b) => a - b);
     }
     implicitWidth: slots.implicitWidth
@@ -31,7 +36,9 @@ Item {
                 hoverEnabled: true
                 focusPolicy: Qt.NoFocus
                 Accessible.name: "Workspace " + modelData
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
                 background: Rectangle {
                     radius: 3
                     color: button.hovered ? Theme.raised : Theme.clear
@@ -56,9 +63,7 @@ Item {
                 }
                 onClicked: {
                     ShellState.close();
-                    Hyprland.dispatch(Hyprland.usingLua
-                        ? "hl.dsp.focus({ workspace = " + modelData + " })"
-                        : "workspace " + modelData);
+                    Hyprland.dispatch(Hyprland.usingLua ? "hl.dsp.focus({ workspace = " + modelData + " })" : "workspace " + modelData);
                 }
             }
         }

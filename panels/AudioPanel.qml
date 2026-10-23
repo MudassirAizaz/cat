@@ -6,30 +6,68 @@ import "../services"
 
 PanelFrame {
     panelName: "audio"
-    panelWidth: 320
-    panelHeight: 190
+    panelWidth: 360
+    panelHeight: content.implicitHeight + 36
+    onOpened: {
+        output.expanded = false;
+        microphone.expanded = false;
+    }
 
-    ColumnLayout {
+    Flickable {
         anchors.fill: parent
         anchors.margins: 18
-        spacing: 12
-        RowLayout {
-            Label { text: "VOLUME"; font.pixelSize: Config.scaledFontSize(11); font.letterSpacing: 1.5; Layout.fillWidth: true }
-            CloseButton { panelTitle: "volume" }
-        }
-        Label { text: Audio.deviceName; Layout.fillWidth: true; color: Theme.muted; font.pixelSize: Config.scaledFontSize(11) }
-        RowLayout {
-            spacing: 10
-            IconButton { iconName: Audio.icon; selected: Audio.muted; enabled: Audio.available; hint: Audio.muted ? "Unmute" : "Mute"; onClicked: Audio.toggleMute() }
-            ValueSlider {
-                Layout.fillWidth: true
-                enabled: Audio.available
-                value: Audio.volume
-                Accessible.name: "Output volume"
-                onMoved: Audio.setVolume(value)
+        contentHeight: content.implicitHeight
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+
+        ColumnLayout {
+            id: content
+            width: parent.width
+            spacing: 14
+            RowLayout {
+                Label {
+                    text: "AUDIO"
+                    font.pixelSize: Config.scaledFontSize(11)
+                    font.letterSpacing: 1.5
+                    Layout.fillWidth: true
+                }
+                CloseButton { panelTitle: "audio" }
             }
-            Label { text: Math.round(Audio.volume * 100) + "%"; Layout.preferredWidth: 38; horizontalAlignment: Text.AlignRight; font.pixelSize: Config.scaledFontSize(11) }
+            AudioDeviceControl {
+                id: output
+                objectName: "audioOutput"
+                Layout.fillWidth: true
+                title: "Output"
+                devices: Audio.outputs
+                device: Audio.sink
+                available: Audio.available
+                volume: Audio.volume
+                muted: Audio.muted
+                iconName: Audio.icon
+                onDeviceSelected: node => Audio.selectOutput(node)
+                onVolumeSet: value => Audio.setVolume(value)
+                onMuteClicked: Audio.toggleMute()
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: Theme.border
+            }
+            AudioDeviceControl {
+                id: microphone
+                objectName: "audioMicrophone"
+                Layout.fillWidth: true
+                title: "Microphone"
+                devices: Audio.inputs
+                device: Audio.source
+                available: Audio.microphoneAvailable
+                volume: Audio.microphoneVolume
+                muted: Audio.microphoneMuted
+                iconName: Audio.microphoneIcon
+                onDeviceSelected: node => Audio.selectInput(node)
+                onVolumeSet: value => Audio.setMicrophoneVolume(value)
+                onMuteClicked: Audio.toggleMicrophoneMute()
+            }
         }
-        Label { text: Audio.muted ? "Output muted" : "Scroll the bar icon to adjust volume"; color: Theme.subtle; font.pixelSize: Config.scaledFontSize(10); Layout.fillWidth: true }
     }
 }

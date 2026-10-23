@@ -22,17 +22,20 @@ T.Button {
     leftInset: 0
     rightInset: 0
     Accessible.name: hint || text
-    HoverHandler { cursorShape: Qt.PointingHandCursor }
+    HoverHandler {
+        cursorShape: Qt.PointingHandCursor
+    }
     PopupWindow {
         id: hintWindow
         property bool ready: false
-        readonly property bool requested: root.hovered && root.enabled && !root.down
-            && root.hint.length > 0 && ShellState.panel === ""
+        readonly property bool requested: root.hovered && root.enabled && !root.down && root.hint.length > 0 && ShellState.panel === ""
         visible: requested && ready
         onRequestedChanged: {
             ready = false;
-            if (requested) hintDelay.restart();
-            else hintDelay.stop();
+            if (requested)
+                hintDelay.restart();
+            else
+                hintDelay.stop();
         }
         // A hint must never become a pointer target or take keyboard focus.
         grabFocus: false

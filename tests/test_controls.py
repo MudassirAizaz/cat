@@ -1,13 +1,10 @@
 """Exercise control services offscreen with isolated network/power backends."""
-import os
 from pathlib import Path
 import shutil
-import subprocess
 import tempfile
 import unittest
 
-
-ROOT = Path(__file__).resolve().parents[1]
+from support import ROOT, assert_qml_passes, qml_environment
 
 
 @unittest.skipUnless(shutil.which("quickshell"), "quickshell is required")
@@ -22,24 +19,11 @@ class ControlTests(unittest.TestCase):
             'pragma Singleton\nimport QtQuick\nQtObject { property string panel: "" }\n'
         )
         (self.root / "qmldir").write_text("singleton ShellState 1.0 ShellState.qml\n")
-        self.env = dict(os.environ)
-        for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
-            self.env.pop(key, None)
-        self.env.update(
-            QT_QPA_PLATFORM="offscreen",
-            XDG_RUNTIME_DIR=str(self.root / "runtime"),
-            XDG_CACHE_HOME=str(self.root / "cache"),
-        )
+        self.env = qml_environment(self.root)
 
     def run_qml(self, body, marker):
         (self.root / "shell.qml").write_text(body)
-        result = subprocess.run(
-            ["quickshell", "-p", str(self.root), "--no-color"],
-            env=self.env, capture_output=True, text=True, timeout=10,
-        )
-        output = result.stdout + result.stderr
-        self.assertIn(marker, output, output)
-        self.assertNotIn("TEST FAILURE", output, output)
+        assert_qml_passes(self, self.root, marker, self.env)
 
     def test_wifi_password_retry_saved_open_and_enterprise_networks(self):
         fake = self.root / "fake"
@@ -87,10 +71,17 @@ ShellRoot {
         property real signalStrength: 0.8
         property int connects: 0
         property int authentications: 0
+        property string lastSecret: ""
+        property int disconnects: 0
         signal connectionFailed(int reason)
         function connect() { connects++; state = ConnectionState.Connecting; }
-        function connectWithPsk(secret) { authentications++; state = ConnectionState.Connecting; }
-        function disconnect() { connected = false; state = ConnectionState.Disconnected; }
+        function connectWithPsk(secret) { lastSecret = secret; authentications++; state = ConnectionState.Connecting; }
+        function disconnect() {
+            disconnects++;
+            connected = false;
+            state = ConnectionState.Disconnected;
+            connectionFailed(ConnectionFailReason.WifiAuthTimeout);
+        }
     }
     property QtObject radio: QtObject {
         property int type: DeviceType.Wifi
@@ -114,6 +105,7 @@ ShellRoot {
                 root.check(NetworkState.passwordRequired && !NetworkState.busy, "new WPA network prompts");
                 NetworkState.authenticate("test-passphrase");
                 root.check(NetworkState.busy && root.network.authentications === 1, "PSK uses direct backend method");
+                root.check(root.network.lastSecret === "test-passphrase", "password is forwarded intact");
                 root.network.connectionFailed(ConnectionFailReason.NoSecrets);
                 root.check(NetworkState.passwordRequired && !NetworkState.busy && NetworkState.error.length > 0, "wrong password permits retry");
                 NetworkState.authenticate("test-passphrase-again");
@@ -136,6 +128,17 @@ ShellRoot {
                 root.check(NetworkState.needsSetup(root.network) && !NetworkState.busy, "unsaved enterprise network requires setup");
                 NetworkState.toggleWifi();
                 root.check(!Networking.wifiEnabled && !NetworkState.selected, "radio toggle clears prompt");
+                Networking.wifiEnabled = true;
+                root.network.security = WifiSecurityType.Open;
+                NetworkState.choose(root.network);
+                const previousDisconnects = root.network.disconnects;
+                NetworkState.handleTimeout();
+                root.check(!NetworkState.busy && root.network.disconnects === previousDisconnects + 1, "timeout cancels backend request");
+                root.check(NetworkState.error.includes("timed out"), "disconnect failure does not replace timeout error");
+                NetworkState.choose(root.network);
+                root.check(NetworkState.busy && !NetworkState.error, "timeout allows a fresh retry");
+                NetworkState.toggleWifi();
+                root.check(!NetworkState.busy && !NetworkState.error, "radio toggle cancels pending connection");
                 console.log("NETWORK_STATE_PASS");
             } catch (error) { console.log("TEST FAILURE", error.message); }
             Qt.quit();
@@ -152,12 +155,16 @@ ShellRoot {
 import os, pathlib, sys
 state = pathlib.Path(os.environ["CAT_TEST_POWER"])
 if sys.argv[1] == "list":
+    if state.with_suffix(".failed").exists():
+        print("* balanced:")
+        sys.exit(1)
     active = state.read_text() if state.exists() else "balanced"
     for name in ("performance", "balanced", "power-saver"):
         print(("* " if name == active else "  ") + name + ":")
         print("    CpuDriver: test")
 elif sys.argv[1] == "set":
     if sys.argv[2] == "power-saver":
+        state.with_suffix(".failed").write_text("failed")
         sys.exit(1)
     state.write_text(sys.argv[2])
 ''')
@@ -187,8 +194,13 @@ ShellRoot {
                     if (PowerState.active !== "performance") throw new Error("profile change confirmed");
                     PowerState.select("power-saver");
                     step++;
-                } else {
+                } else if (step === 2) {
                     if (!PowerState.error || PowerState.active !== "performance") throw new Error("failure preserves actual profile");
+                    PowerState.refresh();
+                    step++;
+                } else {
+                    if (!PowerState.error || PowerState.active !== "performance" || PowerState.profiles.length !== 3)
+                        throw new Error("failed refresh preserves previous profiles");
                     console.log("POWER_STATE_PASS");
                     Qt.quit();
                 }

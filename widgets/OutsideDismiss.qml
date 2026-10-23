@@ -2,12 +2,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import ".."
+import "../services"
 
 // The panel itself handles its screen; this covers the other monitors.
 PanelWindow {
     required property var modelData
     screen: modelData
-    visible: ShellState.panel !== ""
+    visible: ShellState.panel !== "" && !(ShellState.panel === "window" && WindowInput.ready)
         && screen !== (ShellState.panelScreen || ShellState.focusedScreen)
     anchors.top: true
     anchors.bottom: true

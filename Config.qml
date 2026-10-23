@@ -8,7 +8,7 @@ QtObject {
     function scaledFontSize(pixels) {
         return Math.max(1, Math.round(pixels * fontSize / 13));
     }
-    property int barHeight: 36
+    property int barHeight: 30
     property int gap: 10
     property int radius: 6
     property int workspaceCount: 5

@@ -9,19 +9,45 @@ Scope {
     property bool doNotDisturb: false
     property var metadata: ({})
     property var popupIds: []
-    readonly property var history: server.trackedNotifications.values.filter(n => !n.transient).slice().reverse()
-    readonly property var popups: server.trackedNotifications.values.filter(n => popupIds.indexOf(n.id) !== -1).slice(-3).reverse()
+    readonly property var history: {
+        const notifications = server.trackedNotifications.values;
+        return notifications.filter(n => !n.transient).slice().reverse();
+    }
+    readonly property var popups: {
+        const notifications = server.trackedNotifications.values;
+        return notifications.filter(n => popupIds.includes(n.id)).slice(-3).reverse();
+    }
     readonly property int unread: history.filter(n => metadata[n.id]?.unread).length
 
     function removePopup(id) {
         popupIds = popupIds.filter(value => value !== id);
     }
 
+    function hidePopups() {
+        popupIds = [];
+        // A transient has no history entry from which a hidden sticky popup can
+        // be dismissed. Release it when DND or the history view hides popups.
+        server.trackedNotifications.values.slice().forEach(notification => {
+            if (notification.transient && metadata[notification.id]?.deadline === 0)
+                notification.expire();
+        });
+    }
+
+    function forget(id) {
+        removePopup(id);
+        const next = Object.assign({}, metadata);
+        delete next[id];
+        metadata = next;
+    }
+
     function markRead() {
         const next = Object.assign({}, metadata);
-        Object.keys(next).forEach(id => next[id] = Object.assign({}, next[id], { unread: false }));
+        Object.keys(next).forEach(id => {
+            next[id] = Object.assign({}, next[id]);
+            next[id].unread = false;
+        });
         metadata = next;
-        popupIds = [];
+        hidePopups();
     }
 
     function clear() {
@@ -32,8 +58,45 @@ Scope {
         return metadata[id] ? Qt.formatDateTime(new Date(metadata[id].received), "HH:mm") : "";
     }
 
+    function receive(notification) {
+        notification.tracked = true;
+        const id = notification.id;
+        const now = Date.now();
+        const sticky = notification.expireTimeout === 0 || notification.urgency === NotificationUrgency.Critical;
+        const duration = notification.expireTimeout > 0 ? notification.expireTimeout * 1000 : Config.toastDuration;
+        const viewingHistory = ShellState.panel === "notifications";
+        const suppressed = doNotDisturb || viewingHistory;
+        const next = Object.assign({}, metadata);
+        next[id] = {
+            received: now,
+            unread: !viewingHistory,
+            deadline: sticky && !(notification.transient && suppressed) ? 0 : now + duration
+        };
+        metadata = next;
+        notification.closed.connect(() => root.forget(id));
+
+        if (!notification.lastGeneration && !suppressed)
+            popupIds = popupIds.filter(value => value !== id).concat([id]);
+
+        Qt.callLater(() => {
+            history.slice(Config.notificationLimit).forEach(n => n.dismiss());
+        });
+    }
+
+    function expireDue(now) {
+        server.trackedNotifications.values.slice().forEach(notification => {
+            const entry = metadata[notification.id];
+            if (!entry || entry.deadline <= 0 || now < entry.deadline)
+                return;
+            removePopup(notification.id);
+            if (notification.transient)
+                notification.expire();
+        });
+    }
+
     onDoNotDisturbChanged: {
-        if (doNotDisturb) popupIds = [];
+        if (doNotDisturb)
+            hidePopups();
     }
 
     NotificationServer {
@@ -43,45 +106,13 @@ Scope {
         bodySupported: true
         actionsSupported: true
 
-        onNotification: notification => {
-            notification.tracked = true;
-            const id = notification.id;
-            const now = Date.now();
-            const sticky = notification.expireTimeout === 0 || notification.urgency === NotificationUrgency.Critical;
-            const duration = notification.expireTimeout > 0 ? notification.expireTimeout * 1000 : Config.toastDuration;
-            const next = Object.assign({}, root.metadata);
-            const suppressed = root.doNotDisturb || ShellState.panel === "notifications";
-            next[id] = { received: now, unread: ShellState.panel !== "notifications", deadline: sticky && !(notification.transient && suppressed) ? 0 : now + duration };
-            root.metadata = next;
-            notification.closed.connect(() => {
-                root.removePopup(id);
-                const remaining = Object.assign({}, root.metadata);
-                delete remaining[id];
-                root.metadata = remaining;
-            });
-            if (!notification.lastGeneration && !root.doNotDisturb && ShellState.panel !== "notifications")
-                root.popupIds = root.popupIds.filter(value => value !== id).concat([id]);
-
-            Qt.callLater(() => {
-                const oldest = root.history.slice(Config.notificationLimit);
-                oldest.forEach(n => n.dismiss());
-            });
-        }
+        onNotification: notification => root.receive(notification)
     }
 
     Timer {
         interval: 250
         running: root.popupIds.length > 0 || server.trackedNotifications.values.some(n => n.transient)
         repeat: true
-        onTriggered: {
-            const now = Date.now();
-            server.trackedNotifications.values.slice().forEach(n => {
-                const entry = root.metadata[n.id];
-                if (entry && entry.deadline > 0 && now >= entry.deadline) {
-                    root.removePopup(n.id);
-                    if (n.transient) n.expire();
-                }
-            });
-        }
+        onTriggered: root.expireDue(Date.now())
     }
 }

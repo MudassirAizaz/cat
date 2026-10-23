@@ -1,14 +1,10 @@
 """Exercise delayed hints and button input in an isolated offscreen shell."""
-import os
 from pathlib import Path
-import re
 import shutil
-import subprocess
 import tempfile
 import unittest
 
-
-ROOT = Path(__file__).resolve().parents[1]
+from support import ROOT, assert_qml_passes, floating_window
 
 
 @unittest.skipUnless(shutil.which("quickshell"), "quickshell is required")
@@ -19,7 +15,7 @@ class InteractionTests(unittest.TestCase):
             (root / "runtime").mkdir(mode=0o700)
             (root / "components").mkdir()
             (root / "widgets").mkdir()
-            for name in ("ActionButton", "IconButton", "Icon", "Label", "PanelFrame"):
+            for name in ("ActionButton", "ApplicationIcon", "IconButton", "Icon", "Label", "PanelFrame"):
                 shutil.copy(ROOT / "components" / f"{name}.qml", root / "components")
             for name in ("Bar", "WorkspaceSwitcher"):
                 shutil.copy(ROOT / "widgets" / f"{name}.qml", root / "widgets")
@@ -29,19 +25,17 @@ class InteractionTests(unittest.TestCase):
             # buttons and panel state. Layer-shell needs a desktop compositor.
             for name in ("components/PanelFrame.qml", "widgets/Bar.qml"):
                 path = root / name
-                source = path.read_text().replace("PanelWindow {", "FloatingWindow {")
-                source = re.sub(
-                    r"^    (?:anchors\.(?:top|bottom|left|right):|margins\.|exclusionMode:|exclusiveZone:|WlrLayershell\.).*\n",
-                    "", source, flags=re.M,
-                )
+                source = floating_window(path.read_text())
                 if name == "widgets/Bar.qml":
                     source = source.replace("implicitHeight: Config.barHeight",
                                             "implicitWidth: 800\n    implicitHeight: Config.barHeight")
                 path.write_text(source)
             services = root / "services"
             services.mkdir()
+            shutil.copy(ROOT / "services/WindowState.qml", services)
             (services / "qmldir").write_text(
                 "singleton Audio 1.0 Audio.qml\nsingleton NetworkState 1.0 NetworkState.qml\n"
+                "singleton WindowState 1.0 WindowState.qml\n"
             )
             (services / "Audio.qml").write_text('''pragma Singleton
 import QtQuick
@@ -67,8 +61,8 @@ import "widgets"
 ShellRoot {
     Bar { id: bar; modelData: Quickshell.screens[0] }
     PanelFrame {
-        id: launcher
-        panelName: "launcher"
+        id: menuPanel
+        panelName: "menu"
         centered: true
         panelWidth: 240
         panelHeight: 200
@@ -101,34 +95,34 @@ ShellRoot {
         }
         onTriggered: {
             try {
-                const apps = findIcon(bar.contentItem, "apps");
+                const menu = findIcon(bar.contentItem, "menu");
                 const volume = findIcon(bar.contentItem, "volume");
                 if (step === 0) {
-                    click(apps, 15, 14);
+                    click(menu, 15, 14);
                 } else if (step === 1) {
-                    check(launcher.visible, "bar opens launcher");
+                    check(menuPanel.visible, "bar opens menu");
                     click(inside, 10, 10);
-                    check(inside.clicks === 1 && launcher.visible, "inside control works without dismissing");
+                    check(inside.clicks === 1 && menuPanel.visible, "inside control works without dismissing");
                     click(inside.parent, 5, 5);
-                    check(launcher.visible, "empty panel padding does not dismiss");
+                    check(menuPanel.visible, "empty panel padding does not dismiss");
                     click(volume, 15, 14);
                 } else if (step === 2) {
-                    check(audio.visible && !launcher.visible, "another bar icon switches panels in one click");
+                    check(audio.visible && !menuPanel.visible, "another bar icon switches panels in one click");
                     click(audio.contentItem, audio.width / 2, audio.height - 20);
                     check(ShellState.panel === "", "outside mouse click closes panel");
-                    click(apps, 15, 14);
+                    click(menu, 15, 14);
                 } else if (step === 3) {
-                    check(launcher.visible, "panel reopens after dismissal");
-                    events.touchEvent(launcher.contentItem)
-                        .press(0, launcher.contentItem, 20, launcher.height - 20).commit();
+                    check(menuPanel.visible, "panel reopens after dismissal");
+                    events.touchEvent(menuPanel.contentItem)
+                        .press(0, menuPanel.contentItem, 20, menuPanel.height - 20).commit();
                 } else if (step === 4) {
-                    events.touchEvent(launcher.contentItem)
-                        .release(0, launcher.contentItem, 20, launcher.height - 20).commit();
+                    events.touchEvent(menuPanel.contentItem)
+                        .release(0, menuPanel.contentItem, 20, menuPanel.height - 20).commit();
                 } else if (step === 5) {
                     check(ShellState.panel === "", "outside touch closes panel");
-                    click(apps, 15, 14);
+                    click(menu, 15, 14);
                 } else if (step === 6) {
-                    click(bar.contentItem, bar.width / 2, 18);
+                    click(bar.contentItem, bar.width / 2, 2);
                     check(ShellState.panel === "", "empty bar click closes panel");
                     click(volume, 15, 14);
                 } else {
@@ -144,18 +138,7 @@ ShellRoot {
     }
 }
 ''')
-            env = dict(os.environ)
-            for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
-                env.pop(key, None)
-            env.update(QT_QPA_PLATFORM="offscreen", XDG_RUNTIME_DIR=str(root / "runtime"),
-                       XDG_CACHE_HOME=str(root / "cache"))
-            result = subprocess.run(
-                ["quickshell", "-p", str(root), "--no-color"],
-                env=env, capture_output=True, text=True, timeout=12,
-            )
-            output = result.stdout + result.stderr
-            self.assertIn("POPUP_INPUT_PASS", output, output)
-            self.assertNotIn("TEST FAILURE", output, output)
+            assert_qml_passes(self, root, "POPUP_INPUT_PASS", timeout=12)
 
     def test_click_after_hover_without_leaving_icon(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -231,21 +214,7 @@ ShellRoot {
     }
 }
 ''')
-            env = dict(os.environ)
-            for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
-                env.pop(key, None)
-            env.update(
-                QT_QPA_PLATFORM="offscreen",
-                XDG_RUNTIME_DIR=str(root / "runtime"),
-                XDG_CACHE_HOME=str(root / "cache"),
-            )
-            result = subprocess.run(
-                ["quickshell", "-p", str(root), "--no-color"],
-                env=env, capture_output=True, text=True, timeout=12,
-            )
-            output = result.stdout + result.stderr
-            self.assertIn("HOVER_CLICK_PASS", output, output)
-            self.assertNotIn("TEST FAILURE", output, output)
+            assert_qml_passes(self, root, "HOVER_CLICK_PASS", timeout=12)
 
 
 if __name__ == "__main__":

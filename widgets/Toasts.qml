@@ -33,7 +33,11 @@ PanelWindow {
             spacing: 8
             Repeater {
                 model: Notifications.popups
-                NotificationCard { required property var modelData; width: stack.width; notification: modelData }
+                NotificationCard {
+                    required property var modelData
+                    width: stack.width
+                    notification: modelData
+                }
             }
         }
     }

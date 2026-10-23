@@ -12,11 +12,19 @@ Scope {
     readonly property bool hardwareEnabled: Networking.wifiHardwareEnabled
     readonly property bool available: wifiDevices.length > 0
     readonly property var networks: {
-        let result = [];
+        const result = [];
         wifiDevices.forEach(device => {
-            device.networks.values.forEach(network => { if (network.name) result.push(network); });
+            device.networks.values.forEach(network => {
+                if (network.name)
+                    result.push(network);
+            });
         });
-        return result.sort((a, b) => Number(b.connected) - Number(a.connected) || b.signalStrength - a.signalStrength || a.name.localeCompare(b.name));
+        return result.sort((a, b) => {
+            const connectionOrder = Number(b.connected) - Number(a.connected);
+            if (connectionOrder) return connectionOrder;
+            const signalOrder = b.signalStrength - a.signalStrength;
+            return signalOrder || a.name.localeCompare(b.name);
+        });
     }
     readonly property var connectedNetwork: networks.find(n => n.connected) || null
     readonly property bool wiredConnected: Networking.devices.values.some(d => d.type === DeviceType.Wired && d.connected)
@@ -34,23 +42,25 @@ Scope {
     }
 
     function needsSetup(network) {
-        return network && !network.known && !supportsPassword(network)
-            && network.security !== WifiSecurityType.Open && network.security !== WifiSecurityType.Owe;
+        return network && !network.known && !supportsPassword(network) && network.security !== WifiSecurityType.Open && network.security !== WifiSecurityType.Owe;
     }
 
     function choose(network) {
-        if (busy || !network || network.connected) return;
+        if (busy || !network || network.connected)
+            return;
         error = "";
         selected = network;
         passwordRequired = supportsPassword(network) && !network.known;
-        if (passwordRequired || needsSetup(network)) return;
+        if (passwordRequired || needsSetup(network))
+            return;
         pending = network;
         timeout.restart();
         network.connect();
     }
 
     function authenticate(password) {
-        if (busy || !selected || !supportsPassword(selected) || !password) return;
+        if (busy || !selected || !supportsPassword(selected) || !password)
+            return;
         error = "";
         pending = selected;
         passwordRequired = false;
@@ -65,11 +75,28 @@ Scope {
         error = "";
     }
 
-    function toggleWifi() {
-        if (!hardwareEnabled) return;
-        if (pending) pending.disconnect();
+    function stopPending(disconnect) {
+        const network = pending;
+        // Stop observing the old request before disconnect can emit failure signals.
         pending = null;
         timeout.stop();
+        if (disconnect && network)
+            network.disconnect();
+    }
+
+    function handleTimeout() {
+        const connected = pending?.connected;
+        stopPending(!connected);
+        if (connected)
+            cancelSelection();
+        else
+            error = "The connection timed out. Try again or check network settings.";
+    }
+
+    function toggleWifi() {
+        if (!hardwareEnabled)
+            return;
+        stopPending(true);
         cancelSelection();
         Networking.wifiEnabled = !wifiEnabled;
     }
@@ -90,15 +117,14 @@ Scope {
     Connections {
         target: root.pending
         function onStateChanged() {
-            if (root.pending?.state !== ConnectionState.Connected) return;
-            root.pending = null;
+            if (root.pending?.state !== ConnectionState.Connected)
+                return;
+            root.stopPending(false);
             root.cancelSelection();
-            timeout.stop();
         }
         function onConnectionFailed(reason) {
             const network = root.pending;
-            root.pending = null;
-            timeout.stop();
+            root.stopPending(false);
             root.selected = network;
             if (reason === ConnectionFailReason.NoSecrets && root.supportsPassword(network)) {
                 root.passwordRequired = true;
@@ -112,10 +138,6 @@ Scope {
     Timer {
         id: timeout
         interval: 45000
-        onTriggered: {
-            if (root.pending?.connected) root.cancelSelection();
-            else root.error = "The connection timed out. Try again or check network settings.";
-            root.pending = null;
-        }
+        onTriggered: root.handleTimeout()
     }
 }

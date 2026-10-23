@@ -11,7 +11,9 @@ PanelFrame {
     panelWidth: 390
     panelHeight: 360
     function focusEntry(index) {
-        entries.itemAt((index + entries.count) % entries.count)?.forceActiveFocus(Qt.TabFocusReason);
+        if (!entries.count) return;
+        const wrapped = (index + entries.count) % entries.count;
+        entries.itemAt(wrapped)?.forceActiveFocus(Qt.TabFocusReason);
     }
     onOpened: {
         const index = entries.model.findIndex(entry => entry.id === Theme.palette);
@@ -23,18 +25,27 @@ PanelFrame {
         anchors.margins: 20
         spacing: 10
         RowLayout {
-            Label { text: "THEME"; font.pixelSize: Config.scaledFontSize(11); font.letterSpacing: 2; Layout.fillWidth: true }
-            CloseButton { panelTitle: "theme" }
+            Label {
+                text: "THEME"
+                font.pixelSize: Config.scaledFontSize(11)
+                font.letterSpacing: 2
+                Layout.fillWidth: true
+            }
+            CloseButton {
+                panelTitle: "theme"
+            }
         }
-        Label { text: "Choose a colour palette"; color: Theme.muted; font.pixelSize: Config.scaledFontSize(11) }
+        Label {
+            text: "Choose a colour palette"
+            color: Theme.muted
+            font.pixelSize: Config.scaledFontSize(11)
+        }
         Repeater {
             id: entries
-            model: [
-                { id: "catppuccin-mocha", title: "Catppuccin Mocha" },
-                { id: "everforest", title: "Everforest" },
-                { id: "gruvbox", title: "Gruvbox" },
-                { id: "tokyo-night", title: "Tokyo Night" }
-            ]
+            model: Object.keys(Theme.palettes).map(id => ({
+                        id,
+                        title: Theme.palettes[id].name || id.replace(/-/g, " ")
+                    }))
             ActionButton {
                 id: themeRow
                 required property var modelData
@@ -50,13 +61,32 @@ PanelFrame {
                 Keys.onEnterPressed: clicked()
                 contentItem: RowLayout {
                     spacing: 10
-                    Rectangle { Layout.leftMargin: 12; Layout.preferredWidth: 15; Layout.preferredHeight: 15; radius: 8; color: Theme.palettes[themeRow.modelData.id].accent }
-                    Label { text: themeRow.modelData.title; Layout.fillWidth: true; font.pixelSize: Config.scaledFontSize(12) }
-                    Icon { name: "check"; visible: themeRow.selected; color: Theme.onAccent; Layout.rightMargin: 12; implicitWidth: 15; implicitHeight: 15 }
+                    Rectangle {
+                        Layout.leftMargin: 12
+                        Layout.preferredWidth: 15
+                        Layout.preferredHeight: 15
+                        radius: 8
+                        color: Theme.palettes[themeRow.modelData.id].accent
+                    }
+                    Label {
+                        text: themeRow.modelData.title
+                        Layout.fillWidth: true
+                        font.pixelSize: Config.scaledFontSize(12)
+                    }
+                    Icon {
+                        name: "check"
+                        visible: themeRow.selected
+                        color: Theme.onAccent
+                        Layout.rightMargin: 12
+                        implicitWidth: 15
+                        implicitHeight: 15
+                    }
                 }
                 onClicked: Theme.palette = modelData.id
             }
         }
-        Item { Layout.fillHeight: true }
+        Item {
+            Layout.fillHeight: true
+        }
     }
 }

@@ -9,7 +9,10 @@
 -- Create your files separately and then require them like this:
 -- require("myColors")
 
-require("modules.monitors")
+-- A host may provide monitor settings separately; the checkout does not require them.
+if package.searchpath("modules.monitors", package.path) then
+    require("modules.monitors")
+end
 ---------------------
 ---- MY PROGRAMS ----
 ---------------------
@@ -17,7 +20,6 @@ require("modules.monitors")
 -- Set programs that you use
 local terminal    = "ghostty"
 local fileManager = terminal .. " -e yazi"
-local menu        = "fuzzel"
 
 
 -------------------
@@ -33,7 +35,7 @@ hl.on("hyprland.start", function ()
 --   hl.exec_cmd(terminal)
 --   hl.exec_cmd("nm-applet")
     hl.exec_cmd("waybar & hyprpaper")
-    hl.exec_cmd("hyprctl setcursor Breeze-Dark 24")
+    hl.exec_cmd("hyprctl setcursor breeze_cursors 24")
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
     hl.exec_cmd("wl-paste --watch cliphist store")
 end)
@@ -45,9 +47,9 @@ end)
 
 -- See https://wiki.hypr.land/Configuring/Advanced-and-Cool/Environment-variables/
 
-hl.env("HYPRCURSOR_THEME", "breeze-dark")
+-- Breeze Dark is installed as an XCursor theme under this directory name.
+hl.env("XCURSOR_THEME", "breeze_cursors")
 hl.env("XCURSOR_SIZE", "24")
-hl.env("HYPRCURSOR_SIZE", "24")
 
 
 -----------------------
@@ -77,12 +79,12 @@ hl.env("HYPRCURSOR_SIZE", "24")
 hl.config({
     general = {
         gaps_in  = 2,
-        gaps_out = 5,
+        gaps_out = 2,
 
         border_size = 1,
 
         col = {
-            active_border   = { colors = {"rgba(33ffffff)", "rgba(00000000)"}, angle = 45 },
+            active_border   = { colors = {"rgba(1e232600)", "rgba(00000000)"}, angle = 45 },
             inactive_border = "rgba(595959aa)",
         },
 
@@ -96,7 +98,7 @@ hl.config({
     },
 
     decoration = {
-        rounding       = 10,
+        rounding       = 0,
         rounding_power = 2,
 
         -- Change transparency of focused and unfocused windows
@@ -242,8 +244,17 @@ hl.device({
 
 local mainMod = "SUPER" -- Sets "Windows" key as main modifier
 
--- Cat shell panels (the shell runs from this checkout).
-local catIpc = "quickshell ipc -p /a/qs call shell "
+-- Resolve this file's real location, including ~/.config/hypr symlinks.
+-- Bindings and run.sh must select the same checkout without a named config.
+local function shellQuote(value)
+    return "'" .. value:gsub("'", "'\\''") .. "'"
+end
+local configSource = assert(debug.getinfo(1, "S").source:match("^@(.+)$"))
+local configReader = assert(io.popen("readlink -f -- " .. shellQuote(configSource), "r"))
+local configPath = assert(configReader:read("*l"), "Could not resolve the Cat config path")
+configReader:close()
+local catDirectory = assert(configPath:match("^(.*)/[^/]+$"))
+local catIpc = shellQuote(catDirectory .. "/run.sh") .. " ipc call shell "
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(catIpc .. "launcher"))
 hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd(catIpc .. "menu"))
 hl.bind(mainMod .. " + P", hl.dsp.exec_cmd(catIpc .. "session"))
@@ -255,11 +266,10 @@ hl.bind(mainMod .. " + SHIFT + N", hl.dsp.exec_cmd(catIpc .. "dnd"))
 hl.bind(mainMod .. " + return", hl.dsp.exec_cmd(terminal))
 local closeWindowBind = hl.bind(mainMod .. " + W", hl.dsp.window.close())
 -- closeWindowBind:set_enabled(false)
-hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
+hl.bind(mainMod .. " + M", hl.dsp.exec_cmd("bash " .. shellQuote(catDirectory .. "/scripts/session.sh") .. " logout"))
 hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + B", hl.dsp.window.float({ action = "toggle" }))
 -- Replaced by Cat launcher above:
--- hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 -- hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized" }))
@@ -268,7 +278,6 @@ hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized" }))
 hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("hyprlock"))
 hl.bind("Print", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
 -- Replaced by the Cat power menu above:
--- hl.bind(mainMod .. " + P", hl.dsp.exec_cmd("/home/mudassir/.config/hypr/scripts/power.sh"))
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
 hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))

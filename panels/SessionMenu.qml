@@ -13,14 +13,20 @@ PanelFrame {
     panelWidth: 440
     panelHeight: 440
     property string error: ""
-    onOpened: { error = ""; focusEntry(0); }
+    onOpened: {
+        error = "";
+        focusEntry(0);
+    }
 
     function focusEntry(index) {
-        entries.itemAt((index + entries.count) % entries.count)?.forceActiveFocus(Qt.TabFocusReason);
+        if (!entries.count) return;
+        const wrapped = (index + entries.count) % entries.count;
+        entries.itemAt(wrapped)?.forceActiveFocus(Qt.TabFocusReason);
     }
 
     function run(action) {
-        if (runner.running) return;
+        if (runner.running)
+            return;
         error = "";
         if (action === "lock") {
             Quickshell.execDetached(["hyprlock"]);
@@ -34,12 +40,17 @@ PanelFrame {
     Process {
         id: runner
         stderr: StdioCollector {
-            onStreamFinished: { if (text.trim()) root.error = text.trim(); }
+            onStreamFinished: {
+                if (text.trim())
+                    root.error = text.trim();
+            }
         }
         onExited: (code, status) => {
             if (code === 0) {
-                if (ShellState.panel === root.panelName) ShellState.close();
-            } else if (!root.error) root.error = "The action could not be completed.";
+                if (ShellState.panel === root.panelName)
+                    ShellState.close();
+            } else if (!root.error)
+                root.error = "The action could not be completed.";
         }
     }
 
@@ -49,18 +60,49 @@ PanelFrame {
         spacing: 10
         RowLayout {
             Layout.fillWidth: true
-            Label { text: "POWER"; font.pixelSize: Config.scaledFontSize(11); font.letterSpacing: 2; Layout.fillWidth: true }
-            CloseButton { panelTitle: "power menu" }
+            Label {
+                text: "POWER"
+                font.pixelSize: Config.scaledFontSize(11)
+                font.letterSpacing: 2
+                Layout.fillWidth: true
+            }
+            CloseButton {
+                panelTitle: "power menu"
+            }
         }
         Repeater {
             id: entries
             model: [
-                { title: "Lock", icon: "lock", action: "lock" },
-                { title: "Suspend", icon: "suspend", action: "suspend" },
-                { title: "Hibernate", icon: "hibernate", action: "hibernate" },
-                { title: "Log out", icon: "logout", action: "logout" },
-                { title: "Restart", icon: "restart", action: "reboot" },
-                { title: "Shut down", icon: "power", action: "poweroff" }
+                {
+                    title: "Lock",
+                    icon: "lock",
+                    action: "lock"
+                },
+                {
+                    title: "Suspend",
+                    icon: "suspend",
+                    action: "suspend"
+                },
+                {
+                    title: "Hibernate",
+                    icon: "hibernate",
+                    action: "hibernate"
+                },
+                {
+                    title: "Log out",
+                    icon: "logout",
+                    action: "logout"
+                },
+                {
+                    title: "Restart",
+                    icon: "restart",
+                    action: "reboot"
+                },
+                {
+                    title: "Shut down",
+                    icon: "power",
+                    action: "poweroff"
+                }
             ]
             MenuEntry {
                 required property var modelData

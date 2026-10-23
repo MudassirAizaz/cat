@@ -11,10 +11,20 @@ PanelFrame {
     centered: true
     panelWidth: 680
     panelHeight: 620
-    onOpened: { WallpaperState.refresh(); gallery.forceActiveFocus(); }
+    onOpened: {
+        WallpaperState.refresh();
+        gallery.forceActiveFocus();
+    }
 
     function imageUrl(path) {
-        return "file://" + path.split("/").map(part => encodeURIComponent(part)).join("/");
+        if (!path) return "";
+        return "file://" + path.split("/").map(encodeURIComponent).join("/");
+    }
+
+    function applyCurrentWallpaper() {
+        const wallpaper = WallpaperState.wallpapers[gallery.currentIndex];
+        if (wallpaper)
+            WallpaperState.set(wallpaper.path);
     }
 
     // The grid has its own focus scope; handle panel shortcuts at window level.
@@ -42,8 +52,15 @@ PanelFrame {
         anchors.margins: 20
         spacing: 12
         RowLayout {
-            Label { text: "WALLPAPER"; font.pixelSize: Config.scaledFontSize(11); font.letterSpacing: 2; Layout.fillWidth: true }
-            CloseButton { panelTitle: "wallpapers" }
+            Label {
+                text: "WALLPAPER"
+                font.pixelSize: Config.scaledFontSize(11)
+                font.letterSpacing: 2
+                Layout.fillWidth: true
+            }
+            CloseButton {
+                panelTitle: "wallpapers"
+            }
         }
         Label {
             text: "~/Pictures/Wallpapers"
@@ -74,15 +91,12 @@ PanelFrame {
                 keyNavigationWraps: true
                 highlightMoveDuration: 0
                 onCurrentIndexChanged: positionViewAtIndex(currentIndex, GridView.Contain)
-                onCountChanged: { if (count && currentIndex < 0) currentIndex = 0; }
-                Keys.onReturnPressed: {
-                    const wallpaper = WallpaperState.wallpapers[currentIndex];
-                    if (wallpaper) WallpaperState.set(wallpaper.path);
+                onCountChanged: {
+                    if (count && currentIndex < 0)
+                        currentIndex = 0;
                 }
-                Keys.onEnterPressed: {
-                    const wallpaper = WallpaperState.wallpapers[currentIndex];
-                    if (wallpaper) WallpaperState.set(wallpaper.path);
-                }
+                Keys.onReturnPressed: root.applyCurrentWallpaper()
+                Keys.onEnterPressed: root.applyCurrentWallpaper()
                 highlight: Rectangle {
                     width: gallery.cellWidth - 10
                     height: gallery.cellHeight - 10

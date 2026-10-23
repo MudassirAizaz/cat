@@ -21,12 +21,42 @@ Rectangle {
         anchors.margins: 14
         spacing: 8
         RowLayout {
-            Label { text: root.notification?.appName || "Notification"; color: Theme.accent; font.pixelSize: Config.scaledFontSize(10); font.letterSpacing: 1; Layout.fillWidth: true }
-            Label { text: root.notification ? Notifications.timeFor(root.notification.id) : ""; color: Theme.subtle; font.pixelSize: Config.scaledFontSize(10) }
-            IconButton { iconName: "close"; hint: "Dismiss notification"; implicitWidth: 26; implicitHeight: 24; onClicked: root.notification?.dismiss() }
+            Label {
+                text: root.notification?.appName || "Notification"
+                color: Theme.accent
+                font.pixelSize: Config.scaledFontSize(10)
+                font.letterSpacing: 1
+                Layout.fillWidth: true
+            }
+            Label {
+                text: root.notification ? Notifications.timeFor(root.notification.id) : ""
+                color: Theme.subtle
+                font.pixelSize: Config.scaledFontSize(10)
+            }
+            IconButton {
+                iconName: "close"
+                hint: "Dismiss notification"
+                implicitWidth: 26
+                implicitHeight: 24
+                onClicked: root.notification?.dismiss()
+            }
         }
-        Label { text: root.notification?.summary || ""; Layout.fillWidth: true; wrapMode: Text.Wrap; maximumLineCount: 3; font.bold: true }
-        Label { text: root.notification?.body || ""; visible: text.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; maximumLineCount: 6; color: Theme.muted; font.pixelSize: Config.scaledFontSize(12) }
+        Label {
+            text: root.notification?.summary || ""
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            maximumLineCount: 3
+            font.bold: true
+        }
+        Label {
+            text: root.notification?.body || ""
+            visible: text.length > 0
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            maximumLineCount: 6
+            color: Theme.muted
+            font.pixelSize: Config.scaledFontSize(12)
+        }
         Flow {
             Layout.fillWidth: true
             spacing: 5

@@ -18,7 +18,19 @@ PanelFrame {
         list.currentIndex = Math.max(0, Math.min(list.count - 1, list.currentIndex + delta));
         list.positionViewAtIndex(list.currentIndex, ListView.Contain);
     }
-    onOpened: { search.text = ""; confirmClear = false; Clipboard.refresh(); search.forceActiveFocus(); }
+    Connections {
+        target: Clipboard
+        function onCopied() {
+            if (root.visible)
+                ShellState.close();
+        }
+    }
+    onOpened: {
+        search.text = "";
+        confirmClear = false;
+        Clipboard.refresh();
+        search.forceActiveFocus();
+    }
     onResultsChanged: list.currentIndex = Math.min(Math.max(0, list.currentIndex), results.length - 1)
 
     ColumnLayout {
@@ -26,34 +38,55 @@ PanelFrame {
         anchors.margins: 20
         spacing: 14
         RowLayout {
-            Label { text: "CLIPBOARD"; font.pixelSize: Config.scaledFontSize(11); font.letterSpacing: 2; Layout.fillWidth: true }
+            Label {
+                text: "CLIPBOARD"
+                font.pixelSize: Config.scaledFontSize(11)
+                font.letterSpacing: 2
+                Layout.fillWidth: true
+            }
             ActionButton {
                 text: root.confirmClear ? "confirm clear" : "clear all"
                 destructive: root.confirmClear
                 enabled: Clipboard.entries.length > 0 && !Clipboard.busy
                 onClicked: {
-                    if (root.confirmClear) { Clipboard.run("wipe"); root.confirmClear = false; }
-                    else root.confirmClear = true;
+                    if (root.confirmClear) {
+                        Clipboard.run("wipe");
+                        root.confirmClear = false;
+                    } else
+                        root.confirmClear = true;
                 }
             }
-            CloseButton { panelTitle: "clipboard" }
+            CloseButton {
+                panelTitle: "clipboard"
+            }
         }
         SearchBox {
             id: search
             Layout.fillWidth: true
             placeholderText: "Find something you copied…"
-            onAccepted: { if (root.results[list.currentIndex]) Clipboard.run("copy", root.results[list.currentIndex].id); }
+            onAccepted: {
+                if (root.results[list.currentIndex])
+                    Clipboard.run("copy", root.results[list.currentIndex].id);
+            }
             Keys.onDownPressed: root.move(1)
             Keys.onUpPressed: root.move(-1)
             Keys.onPressed: event => {
-                if (search.text.length === 0) ShellState.handleNavigationKey(event);
+                if (search.text.length === 0)
+                    ShellState.handleNavigationKey(event);
                 if (event.key === Qt.Key_Delete && event.modifiers & Qt.ControlModifier && root.results[list.currentIndex]) {
                     Clipboard.run("delete", root.results[list.currentIndex].id);
                     event.accepted = true;
                 }
             }
         }
-        Label { visible: Clipboard.error.length > 0; text: Clipboard.error; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Theme.danger; font.pixelSize: Config.scaledFontSize(11) }
+        Label {
+            visible: Clipboard.error.length > 0
+            text: Clipboard.error
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            color: Theme.danger
+            font.pixelSize: Config.scaledFontSize(11)
+        }
         Item {
             Layout.fillHeight: true
             Layout.fillWidth: true
@@ -72,12 +105,22 @@ PanelFrame {
                     height: 64
                     color: ListView.isCurrentItem || mouse.containsMouse ? Theme.raised : Theme.background
                     radius: Config.radius
-                    MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Clipboard.run("copy", row.modelData.id) }
+                    MouseArea {
+                        id: mouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Clipboard.run("copy", row.modelData.id)
+                    }
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 12
                         spacing: 12
-                        Label { text: String(row.index + 1).padStart(2, "0"); color: row.ListView.isCurrentItem ? Theme.accent : Theme.subtle; font.pixelSize: Config.scaledFontSize(11) }
+                        Label {
+                            text: String(row.index + 1).padStart(2, "0")
+                            color: row.ListView.isCurrentItem ? Theme.accent : Theme.subtle
+                            font.pixelSize: Config.scaledFontSize(11)
+                        }
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -97,8 +140,8 @@ PanelFrame {
                                 clip: true
                                 Image {
                                     anchors.fill: parent
-                                    source: row.modelData.imagePath.length > 0
-                                        ? "file://" + row.modelData.imagePath.split("/").map(part => encodeURIComponent(part)).join("/") : ""
+                                    source: row.modelData.imagePath
+                                        ? "file://" + row.modelData.imagePath.split("/").map(encodeURIComponent).join("/") : ""
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     cache: true
@@ -108,12 +151,29 @@ PanelFrame {
                                 }
                             }
                         }
-                        ActionButton { text: "×"; hint: "Delete this entry"; destructive: true; enabled: !Clipboard.busy; onClicked: Clipboard.run("delete", row.modelData.id) }
+                        ActionButton {
+                            text: "×"
+                            hint: "Delete this entry"
+                            destructive: true
+                            enabled: !Clipboard.busy
+                            onClicked: Clipboard.run("delete", row.modelData.id)
+                        }
                     }
                 }
             }
-            EmptyState { anchors.centerIn: parent; width: parent.width - 30; visible: list.count === 0 && !Clipboard.error; title: search.text ? "No matching entries" : "A fresh clipboard"; subtitle: search.text ? "Try a different search." : "Copy something. It will be waiting here." }
+            EmptyState {
+                anchors.centerIn: parent
+                width: parent.width - 30
+                visible: list.count === 0 && !Clipboard.error
+                title: search.text ? "No matching entries" : "A fresh clipboard"
+                subtitle: search.text ? "Try a different search." : "Copy something. It will be waiting here."
+            }
         }
-        Label { text: "↵ copy   ·   ctrl+delete remove   ·   esc close"; font.pixelSize: Config.scaledFontSize(10); color: Theme.muted; Layout.fillWidth: true }
+        Label {
+            text: "↵ copy   ·   ctrl+delete remove   ·   esc close"
+            font.pixelSize: Config.scaledFontSize(10)
+            color: Theme.muted
+            Layout.fillWidth: true
+        }
     }
 }

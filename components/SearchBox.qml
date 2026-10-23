@@ -15,7 +15,8 @@ TextField {
     font.pixelSize: Config.fontSize
     selectByMouse: true
     Keys.onPressed: event => {
-        if (root.text.length === 0) ShellState.handleNavigationKey(event);
+        if (root.text.length === 0)
+            ShellState.handleNavigationKey(event);
     }
     background: Rectangle {
         color: Theme.background

@@ -29,15 +29,19 @@ QtObject {
     }
 
     function navigate(name) {
-        if (name === panel) return;
-        if (!panelScreen) panelScreen = focusedScreen;
-        if (panel) backHistory = backHistory.concat([panel]);
+        if (name === panel)
+            return;
+        if (!panelScreen)
+            panelScreen = focusedScreen;
+        if (panel)
+            backHistory = backHistory.concat([panel]);
         forwardHistory = [];
         panel = name;
     }
 
     function back() {
-        if (!canGoBack) return false;
+        if (!canGoBack)
+            return false;
         forwardHistory = forwardHistory.concat([panel]);
         const previous = backHistory[backHistory.length - 1];
         backHistory = backHistory.slice(0, -1);
@@ -46,7 +50,8 @@ QtObject {
     }
 
     function forward() {
-        if (!canGoForward) return false;
+        if (!canGoForward)
+            return false;
         backHistory = backHistory.concat([panel]);
         const next = forwardHistory[forwardHistory.length - 1];
         forwardHistory = forwardHistory.slice(0, -1);
@@ -55,9 +60,10 @@ QtObject {
     }
 
     function handleNavigationKey(event) {
-        if (event.key !== Qt.Key_Backspace
-            || event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return;
-        if (event.modifiers & Qt.ShiftModifier ? forward() : back()) event.accepted = true;
+        if (event.key !== Qt.Key_Backspace || event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+            return;
+        if (event.modifiers & Qt.ShiftModifier ? forward() : back())
+            event.accepted = true;
     }
 
     function close() {

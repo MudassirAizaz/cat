@@ -26,9 +26,13 @@ PanelFrame {
     }
 
     function launch(app) {
-        if (!app) return;
+        if (!app)
+            return;
         if (app.runInTerminal) {
-            Quickshell.execDetached({ command: Config.terminalCommand.concat(Array.from(app.command)), workingDirectory: app.workingDirectory });
+            Quickshell.execDetached({
+                command: Config.terminalCommand.concat(Array.from(app.command)),
+                workingDirectory: app.workingDirectory
+            });
         } else {
             app.execute();
         }
@@ -41,7 +45,11 @@ PanelFrame {
         list.positionViewAtIndex(list.currentIndex, ListView.Contain);
     }
 
-    onOpened: { search.text = ""; list.currentIndex = 0; search.forceActiveFocus(); }
+    onOpened: {
+        search.text = "";
+        list.currentIndex = 0;
+        search.forceActiveFocus();
+    }
     onResultsChanged: list.currentIndex = 0
 
     ColumnLayout {
@@ -49,8 +57,15 @@ PanelFrame {
         anchors.margins: 20
         spacing: 14
         RowLayout {
-            Label { text: "APPLICATIONS"; font.letterSpacing: 2; font.pixelSize: Config.scaledFontSize(11); Layout.fillWidth: true }
-            CloseButton { panelTitle: "applications" }
+            Label {
+                text: "APPLICATIONS"
+                font.letterSpacing: 2
+                font.pixelSize: Config.scaledFontSize(11)
+                Layout.fillWidth: true
+            }
+            CloseButton {
+                panelTitle: "applications"
+            }
         }
         SearchBox {
             id: search
@@ -79,7 +94,14 @@ PanelFrame {
                     height: 58
                     radius: Config.radius
                     color: ListView.isCurrentItem ? Theme.raised : mouse.containsMouse ? Theme.background : Theme.clear
-                    Rectangle { width: 3; height: 24; anchors.verticalCenter: parent.verticalCenter; radius: 1; color: Theme.accent; visible: row.ListView.isCurrentItem }
+                    Rectangle {
+                        width: 3
+                        height: 24
+                        anchors.verticalCenter: parent.verticalCenter
+                        radius: 1
+                        color: Theme.accent
+                        visible: row.ListView.isCurrentItem
+                    }
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 10
@@ -95,24 +117,63 @@ PanelFrame {
                                 sourceSize.width: 30
                                 sourceSize.height: 30
                             }
-                            Label { anchors.centerIn: parent; visible: icon.status !== Image.Ready; text: row.modelData.name.slice(0, 1).toUpperCase(); color: Theme.accent; font.pixelSize: Config.scaledFontSize(22) }
+                            Label {
+                                anchors.centerIn: parent
+                                visible: icon.status !== Image.Ready
+                                text: row.modelData.name.slice(0, 1).toUpperCase()
+                                color: Theme.accent
+                                font.pixelSize: Config.scaledFontSize(22)
+                            }
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 3
-                            Label { Layout.fillWidth: true; text: row.modelData.name }
-                            Label { Layout.fillWidth: true; text: row.modelData.genericName || row.modelData.comment || row.modelData.id; color: Theme.muted; font.pixelSize: Config.scaledFontSize(11) }
+                            Label {
+                                Layout.fillWidth: true
+                                text: row.modelData.name
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: row.modelData.genericName || row.modelData.comment || row.modelData.id
+                                color: Theme.muted
+                                font.pixelSize: Config.scaledFontSize(11)
+                            }
                         }
-                        Label { visible: row.ListView.isCurrentItem; text: "↵"; color: Theme.accent }
+                        Label {
+                            visible: row.ListView.isCurrentItem
+                            text: "↵"
+                            color: Theme.accent
+                        }
                     }
-                    MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.launch(row.modelData) }
+                    MouseArea {
+                        id: mouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.launch(row.modelData)
+                    }
                 }
             }
-            EmptyState { anchors.centerIn: parent; width: parent.width - 30; visible: list.count === 0; title: "No applications found"; subtitle: "Try a different name or keyword." }
+            EmptyState {
+                anchors.centerIn: parent
+                width: parent.width - 30
+                visible: list.count === 0
+                title: "No applications found"
+                subtitle: "Try a different name or keyword."
+            }
         }
         RowLayout {
-            Label { text: "↑ ↓  navigate     ↵  launch"; font.pixelSize: Config.scaledFontSize(10); color: Theme.muted; Layout.fillWidth: true }
-            Label { text: root.results.length + " apps"; font.pixelSize: Config.scaledFontSize(10); color: Theme.subtle }
+            Label {
+                text: "↑ ↓  navigate     ↵  launch"
+                font.pixelSize: Config.scaledFontSize(10)
+                color: Theme.muted
+                Layout.fillWidth: true
+            }
+            Label {
+                text: root.results.length + " apps"
+                font.pixelSize: Config.scaledFontSize(10)
+                color: Theme.subtle
+            }
         }
     }
 }

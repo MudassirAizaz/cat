@@ -25,6 +25,9 @@ PanelWindow {
     readonly property var monitor: Hyprland.monitorFor(screen)
     readonly property var battery: UPower.displayDevice
     readonly property bool charging: battery.state === UPowerDeviceState.Charging
+    readonly property var shownWindow: ShellState.panel === "window"
+        ? WindowState.inspectedWindow : WindowState.activeWindow
+    readonly property var application: WindowState.applicationFor(shownWindow)
 
     function openPanel(name, button) {
         const point = button.mapToItem(root.contentItem, button.width / 2, button.height);
@@ -35,7 +38,10 @@ PanelWindow {
         return ShellState.panel === name && ShellState.panelScreen === root.screen;
     }
 
-    SystemClock { id: clock; precision: SystemClock.Minutes }
+    SystemClock {
+        id: clock
+        precision: SystemClock.Minutes
+    }
 
     Item {
         id: surface
@@ -45,7 +51,12 @@ PanelWindow {
             acceptedButtons: Qt.AllButtons
             onClicked: ShellState.close()
         }
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+        Rectangle {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            height: 1
+            color: Theme.border
+        }
 
         // Every control shares a 28px box on the same integer-aligned baseline.
         Row {
@@ -62,25 +73,64 @@ PanelWindow {
                 selected: root.isOpen("menu")
                 onClicked: root.openPanel("menu", menuButton)
             }
-            WorkspaceSwitcher { monitor: root.monitor }
-            Label {
+            WorkspaceSwitcher {
+                monitor: root.monitor
+            }
+            ActionButton {
+                id: windowButton
+                objectName: "windowButton"
                 visible: root.width > 1100
                 width: 200
                 height: 28
-                text: Hyprland.activeToplevel?.title || "hyprland"
-                color: Theme.muted
-                font.pixelSize: Config.scaledFontSize(11)
+                focusPolicy: Qt.NoFocus
+                text: root.application.name
+                hint: "Window details"
+                enabled: !!root.shownWindow || root.isOpen("window")
+                selected: root.isOpen("window")
+                contentItem: Row {
+                    spacing: 8
+                    leftPadding: 8
+                    rightPadding: 8
+                    ApplicationIcon {
+                        objectName: "windowButtonIcon"
+                        anchors.verticalCenter: parent.verticalCenter
+                        iconName: root.application.icon
+                        fallbackColor: windowButton.selected ? Theme.onAccent : Theme.muted
+                    }
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(0, windowButton.width - 42)
+                        height: 28
+                        text: windowButton.text
+                        color: windowButton.selected ? Theme.onAccent : Theme.muted
+                        font.pixelSize: Config.scaledFontSize(11)
+                    }
+                }
+                onClicked: {
+                    if (!root.isOpen("window")) WindowState.capture();
+                    root.openPanel("window", windowButton);
+                }
             }
         }
 
-        Label {
-            id: clockLabel
+        ActionButton {
+            id: clockButton
+            objectName: "calendarButton"
             x: Math.round((surface.width - width) / 2)
             height: 28
             y: Math.round((surface.height - height) / 2)
             visible: leftGroup.x + leftGroup.width + 16 < x && x + width + 16 < rightGroup.x
             text: Qt.formatDateTime(clock.date, "ddd, dd MMM  ·  HH:mm")
-            font.pixelSize: Config.scaledFontSize(11)
+            hint: "Date and calendar"
+            focusPolicy: Qt.NoFocus
+            selected: root.isOpen("calendar")
+            contentItem: Label {
+                text: clockButton.text
+                color: clockButton.selected ? Theme.onAccent : Theme.foreground
+                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: Config.scaledFontSize(11)
+            }
+            onClicked: root.openPanel("calendar", clockButton)
         }
 
         Row {
@@ -115,11 +165,13 @@ PanelWindow {
                             acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                             onClicked: event => {
                                 ShellState.close();
-                                if (event.button === Qt.MiddleButton) trayItem.modelData.secondaryActivate();
+                                if (event.button === Qt.MiddleButton)
+                                    trayItem.modelData.secondaryActivate();
                                 else if (event.button === Qt.RightButton || trayItem.modelData.onlyMenu) {
                                     const point = trayItem.mapToItem(root.contentItem, 0, trayItem.height);
                                     trayItem.modelData.display(root, point.x, point.y);
-                                } else trayItem.modelData.activate();
+                                } else
+                                    trayItem.modelData.activate();
                             }
                             onWheel: event => trayItem.modelData.scroll(event.angleDelta.y, false)
                         }
@@ -139,6 +191,7 @@ PanelWindow {
                 id: audioButton
                 iconName: Audio.icon
                 hint: Audio.muted ? "Volume muted" : "Volume " + Math.round(Audio.volume * 100) + "%"
+
                 focusPolicy: Qt.NoFocus
                 selected: root.isOpen("audio")
                 onClicked: root.openPanel("audio", audioButton)
@@ -155,6 +208,7 @@ PanelWindow {
                 level: root.battery.percentage
                 iconColor: selected ? Theme.onAccent : root.battery.isPresent && UPower.onBattery && level < 0.2 ? Theme.warning : Theme.foreground
                 hint: root.battery.isPresent ? "Battery " + Math.round(level * 100) + "%" : "Power profiles"
+
                 focusPolicy: Qt.NoFocus
                 selected: root.isOpen("power")
                 onClicked: root.openPanel("power", powerButton)

@@ -1,4 +1,5 @@
 """Exercise the actual cliphist database without accessing the desktop clipboard."""
+import base64
 import os
 from pathlib import Path
 import shutil
@@ -37,7 +38,7 @@ class ClipboardTests(unittest.TestCase):
     def helper(self, *args, check=True):
         return subprocess.run(
             ["bash", str(HELPER), *args], env=self.env,
-            capture_output=True, check=check,
+            cwd=self.root, capture_output=True, check=check,
         )
 
     def store(self, value):
@@ -80,6 +81,36 @@ class ClipboardTests(unittest.TestCase):
         self.assertIn(b"second entry", self.helper("list").stdout)
         self.helper("wipe")
         self.assertEqual(self.helper("list").stdout, b"")
+
+    def store_image(self):
+        image = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aDJ0AAAAASUVORK5CYII="
+        )
+        entry = self.store(image)
+        fields = self.helper("list").stdout.strip().split(b"\t")
+        preview = Path(fields[2].decode())
+        self.assertEqual(preview.read_bytes(), image)
+        self.assertEqual(preview.stat().st_mode & 0o777, 0o600)
+        return entry, preview
+
+    def test_external_wipe_removes_cached_images_on_refresh(self):
+        _, preview = self.store_image()
+        subprocess.run(["cliphist", "wipe"], env=self.env, check=True)
+        self.assertEqual(self.helper("list").stdout, b"")
+        self.assertFalse(preview.exists())
+
+    def test_delete_and_wipe_remove_image_previews(self):
+        entry, preview = self.store_image()
+        self.helper("delete", entry)
+        self.assertFalse(preview.exists())
+        _, preview = self.store_image()
+        self.helper("wipe")
+        self.assertFalse(preview.exists())
+
+    def test_preview_cache_supports_spaces_and_unicode(self):
+        self.env["XDG_CACHE_HOME"] = str(self.root / "cache with spaces ☀")
+        _, preview = self.store_image()
+        self.assertTrue(preview.is_relative_to(self.env["XDG_CACHE_HOME"]))
 
 
 if __name__ == "__main__":
