@@ -93,13 +93,13 @@ wl-paste --type image --watch cliphist store &
 
 `exec-once` entries run at session startup, not on a Hyprland config reload.
 
-`hyprland.lua` is a full personal desktop configuration, rather than the minimal
-Cat integration. Its Cat bindings resolve the checkout through this file,
-including when your active Hyprland config is a symlink, and require no named
-Quickshell configuration. Its monitor
-module is optional; its other programs and desktop preferences are independent
-of Cat. Copy only the Cat startup and bindings when integrating into an existing
-desktop.
+`hyprland.lua` loads the personal desktop configuration from `hypr/`, resolving
+the files beside the real configuration even when the active config is a symlink.
+`hypr/programs.lua` selects the terminal and the installed Cat directory
+(`~/.local/bin/cat-shell`). Startup and shortcuts share those commands and require
+no named Quickshell configuration. `hypr/monitors.lua` loads the host's optional
+`modules.monitors` configuration; other desktop preferences are independent of
+Cat. Copy only the Cat startup and bindings when integrating into an existing desktop.
 
 If you move the checkout, update the configuration symlink. Avoid a top-level
 `quickshell/shell.qml` alongside named configurations: Quickshell treats that as
@@ -258,7 +258,8 @@ services/                 Notification, clipboard, audio, power, network state
 scripts/clipboard.sh      Binary-safe cliphist operations and image previews
 scripts/wallpapers.py     Wallpaper list and hyprpaper integration
 scripts/session.sh        Allowlisted sleep, power, and logout commands
-hyprland.lua             Personal Hyprland Lua configuration
+hyprland.lua              Loads the personal Hyprland configuration files
+hypr/                     Programs, startup, appearance, input, shortcuts, and rules
 ```
 
 The native integrations use Quickshell's
@@ -273,6 +274,7 @@ and [network service](https://quickshell.org/docs/v0.3.1/types/Quickshell.Networ
 python3 -B -m unittest discover -s tests -v
 bash -n run.sh scripts/clipboard.sh scripts/session.sh
 luac -p hyprland.lua
+for file in hypr/*.lua; do luac -p "$file"; done
 luac -p scripts/window-input.lua
 ```
 
